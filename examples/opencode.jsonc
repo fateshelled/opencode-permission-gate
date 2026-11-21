@@ -6,8 +6,20 @@
       "options": {
         "mode": "off",
         "model": "session",
-        "on_danger": "deny"
-      }
-    }
-  ]
+        // Only used with a fixed provider/model.
+        "variant": "low",
+        "timeout_ms": 2500,
+        "on_danger": "deny",
+        "on_ask": "ask",
+        "on_failure": "ask",
+        "language": "Japanese",
+        "cache_ttl_ms": 600000,
+        // Must be an absolute path.
+        "audit_path": "/absolute/path/to/permission-gate.jsonl",
+        "auto_agents": ["worker"],
+        "skip_actions": ["question", "external_directory", "subagent"],
+        "force_ask_patterns": ["\\bterraform\\s+destroy\\b", "\\bkubectl\\s+delete\\b"],
+      },
+    },
+  ],
 }

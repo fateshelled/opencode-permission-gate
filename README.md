@@ -13,7 +13,7 @@ OpenCode が `ask`（ユーザー確認が必要）と判定したアクショ�
 - 明示的な `deny` ルールは最終決定として維持されます。
 - 既定では、現在のセッションのモデルを使用します。
 - `off`、`dry-run`、`auto` の 3 つのモードがあります。
-- グローバルモードと危険なアクションに対する動作は、設定ファイルから読み取ります。
+- グローバルモード、レビュー結果の扱い、言語は設定ファイルから読み取ります。
 - 危険なアクションをユーザーに送るか、ブロックできます。
 - 判定ごとに監査ログを 1 行書き込みます。
 - TUI コマンドとステータスダイアログを追加します。
@@ -29,6 +29,30 @@ OpenCode が `ask`（ユーザー確認が必要）と判定したアクショ�
 
 ```sh
 opencode plugin add github:fateshelled/opencode-permission-gate
+```
+
+`opencode plugin add` は、次のようにプラグインを文字列で追加します。
+
+```jsonc
+{
+  "plugins": ["github:fateshelled/opencode-permission-gate"]
+}
+```
+
+オプションを設定するには、この文字列をオブジェクト形式に変更します。
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "auto",
+        "language": "Japanese",
+      },
+    },
+  ],
+}
 ```
 
 ### ローカルクローンから
@@ -82,20 +106,20 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 - OpenCode が設定済みのルールを先に評価します。
 - 明示的な `deny` は最終決定であり、プラグインは変更しません。
 - プラグインは、`ask` に解決された判定だけをレビューします。
-- モデルが失敗した場合、タイムアウトした場合、または不正な出力を返した場合、
-  判定は `ask` のままです。
+- モデルが失敗した場合、タイムアウトした場合、または不正な出力を返した場合は、
+  `on_failure` の設定を使用します（既定は `ask`）。
 - プラグインは、判定ごとに JSON を 1 行、監査ログに書き込みます。
 
 モデルが見るのは、アクション、リソース、エージェント名、プロジェクト
-ディレクトリです。
+ディレクトリ、メタデータです。
 
 モデルは `reason` と `hint` を、`language` オプションで指定した言語で返します。
 既定は `Japanese` です。
 
 判定が `ask` のままの場合、プラグインは判定理由を入力欄の上のバナーに
 表示します。承認ダイアログと合わせて、何を確認すべきかを判断できます。
-承認または辞退すると、バナーは自動で消えます。モデルによるレビューが失敗した
-場合も、その旨をバナーに表示します。
+承認または辞退すると、バナーは自動で消えます。レビューが失敗し、`on_failure` が
+`ask` の場合は、その旨をバナーに表示します。
 
 ### モデルの選択
 
@@ -104,7 +128,7 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 1. 現在のセッションのモデルを使用します（既定）。
 2. `model` オプションに `provider/model` を設定した場合は、そのモデルを使用します。
 3. 上記がない場合は、OpenCode の既定モデルを使用します。
-4. モデルがない場合、判定は `ask` のままです。
+4. モデルがない場合は、`on_failure` の設定を使用します（既定は `ask`）。
 
 プラグインはセッションからモデルを読み取り、60 秒間キャッシュします。
 強力なセッションモデルはコストと遅延を増やします。
@@ -118,23 +142,24 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 | `auto` | アクションをレビューし、判定を使用します。 |
 
 既定は `off` です。グローバルモードは `mode` オプションで設定します。
-プラグインは起動時にこのオプションを読み取り、別のグローバル状態は保持しません。
-TUI コマンドは、現在のセッションだけを変更します。
+プラグインは設定の読み込み時にこのオプションを読み取り、別のグローバル状態は
+保持しません。TUI コマンドは、現在のセッションだけを変更します。
 
-## 危険なアクション
+## レビュー結果の扱い
 
-設定ファイルの `on_danger` を `ask` または `deny` に設定します。
-TUI コマンドはこの値を変更しません。
+設定ファイルの次のオプションで、レビュー結果ごとの動作を決めます。
+TUI コマンドはこれらの値を変更しません。
 
-- `ask` は、アクションをユーザーに送ります。
-- `deny` は、アクションをブロックします。
+| オプション | 対象 | 既定値 |
+| --- | --- | --- |
+| `on_danger` | モデルの `deny`、危険パターン一致 | `deny` |
+| `on_ask` | モデルの `ask` | `ask` |
+| `on_failure` | レビューの失敗・タイムアウト・不正出力・モデルなし | `ask` |
 
-この設定は、モデルの `deny` 判定と組み込みの危険パターンに適用されます。
-既定は `deny` です。
-
-`on_ask` はモデルの `ask` 判定に対する効果、`on_failure` はレビューの失敗に
-対する効果です。どちらの既定値も `ask` です。`deny` は、承認できないワーカー
-でのみ使用してください。判断が必要な正当な操作もブロックされます。
+値は `ask` または `deny` です。`ask` は承認ダイアログを表示し、`deny` は
+アクションをブロックします。`on_ask` と `on_failure` に `deny` を設定すると、
+判断が必要な正当な操作もブロックされます。承認できないワーカーでのみ使用して
+ください。
 
 ## コマンド
 
@@ -157,7 +182,7 @@ TUI で次のコマンドを使用します。各コマンドは、現在のセ�
 
 | オプション | 既定値 | 意味 |
 | --- | --- | --- |
-| `mode` | `off` | グローバルモード。プラグインが起動時に読み取ります。 |
+| `mode` | `off` | グローバルモード。プラグインが設定の読み込み時に読み取ります。 |
 | `model` | `session` | `session` はセッションモデルを、`provider/model` は固定モデルを使用します。 |
 | `variant` | `low` | 明示的な `provider/model` のバリアントで、省略する場合は `none` を使用します。 |
 | `timeout_ms` | `2500` | 1 回のレビューの制限時間。 |
@@ -167,12 +192,71 @@ TUI で次のコマンドを使用します。各コマンドは、現在のセ�
 | `language` | `Japanese` | `reason` と `hint` を書く言語。 |
 | `cache_ttl_ms` | `600000` | 1 つの判定をキャッシュに保持する時間。 |
 | `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | 監査ログのファイル。 |
-| `auto_agents` | `[]` | 常に `auto` を使用するエージェントで、セッションの上書きが優先されます。 |
+| `auto_agents` | `[]` | `auto` として扱うエージェント名。セッション個別の上書きが優先されます。 |
 | `skip_actions` | `["question","external_directory","subagent"]` | プラグインがレビューしないアクション。 |
 | `force_ask_patterns` | `[]` | 危険と見なす追加の正規表現。 |
 
-`auto_agents` はオーケストレーションに便利です。ワーカーのエージェント名を
-設定すると、新しいワーカーセッションは `auto` モードで開始します。
+### すべてのオプション
+
+すべてのオプションを指定した例です。不要な項目は省略できます。表に示した値が
+既定値です。配列の項目は例を示しています。`audit_path` は絶対パスで指定して
+ください（`~` は展開されません）。
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "off",                    // off | dry-run | auto
+        "model": "session",               // session | provider/model
+        "variant": "low",                 // only for a fixed provider/model
+        "timeout_ms": 2500,
+        "on_danger": "deny",              // ask | deny
+        "on_ask": "ask",                  // ask | deny
+        "on_failure": "ask",              // ask | deny
+        "language": "Japanese",           // reason and hint language
+        "cache_ttl_ms": 600000,
+        "audit_path": "/absolute/path/to/permission-gate.jsonl",
+        "auto_agents": ["worker"],  // agents that always use auto
+        "skip_actions": ["question", "external_directory", "subagent"],
+        "force_ask_patterns": ["\\bterraform\\s+destroy\\b", "\\bkubectl\\s+delete\\b"],
+      },
+    },
+  ],
+}
+```
+
+ローカルクローン用の同じ例は `examples/opencode.jsonc` にあります。
+
+### `auto_agents` の例
+
+`auto_agents` は、指定した名前のエージェントが動かすセッションを `auto` として
+扱います。ワーカーやサブエージェントを、毎回 `/permission-gate-auto` を実行せずに
+自動判定にしたいときに使います。
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "off",
+        "auto_agents": ["worker"],
+      },
+    },
+  ],
+}
+```
+
+モードの優先順位は次のとおりです。
+
+1. セッション個別の上書き（`/permission-gate-off` など）
+2. `auto_agents` に一致
+3. グローバル `mode`
+
+`auto_agents` はモードだけを変えます。モデル、`timeout_ms`、`on_danger` などは
+変わりません。明示的な `deny` ルールも覆しません。
 
 ## 監査ログ
 

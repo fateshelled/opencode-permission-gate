@@ -12,7 +12,7 @@ plugin then keeps `ask`, changes it to `allow`, or blocks it with `deny`.
 - An explicit `deny` rule stays final.
 - Uses the model of the current session by default.
 - Has `off`, `dry-run`, and `auto` modes.
-- Reads the global mode and the dangerous-action effect from the configuration file.
+- Reads the global mode, review policies, and language from the configuration file.
 - Can send a dangerous action to the user or block it.
 - Writes one audit line for each decision.
 - Adds TUI commands and a status dialog.
@@ -28,6 +28,30 @@ plugin then keeps `ask`, changes it to `allow`, or blocks it with `deny`.
 
 ```sh
 opencode plugin add github:fateshelled/opencode-permission-gate
+```
+
+`opencode plugin add` adds the plugin as a string, as shown here.
+
+```jsonc
+{
+  "plugins": ["github:fateshelled/opencode-permission-gate"]
+}
+```
+
+To set options, change this string to the object form.
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "auto",
+        "language": "Japanese",
+      },
+    },
+  ],
+}
 ```
 
 ### From a local clone
@@ -81,12 +105,12 @@ The plugin registers `ctx.permission.hook("evaluate")`.
 - OpenCode evaluates the configured rules first.
 - An explicit `deny` is final, and the plugin does not change it.
 - The plugin reviews only decisions that resolve to `ask`.
-- If the model fails, times out, or returns invalid output, the decision stays
-  `ask`.
+- If the model fails, times out, or returns invalid output, the plugin applies
+  `on_failure` (default `ask`).
 - The plugin writes one JSON line for each decision to the audit log.
 
 The model sees the action, the resources, the agent name, the project
-directory.
+directory, and the metadata.
 
 The model writes `reason` and `hint` in the language set by the `language`
 option. The default is `Japanese`.
@@ -94,7 +118,7 @@ option. The default is `Japanese`.
 If the decision stays `ask`, the plugin shows the reason in a banner above the
 prompt. Use the banner and the approval dialog to decide what to check. The
 banner disappears automatically when you approve or reject the action. If the
-model review fails, the banner shows that condition too.
+review fails and `on_failure` is `ask`, the banner shows that condition.
 
 ### Model selection
 
@@ -103,7 +127,7 @@ The plugin uses this order:
 1. The plugin uses the model of the current session by default.
 2. If you set `model` to `provider/model`, the plugin uses that model.
 3. Otherwise the plugin uses the OpenCode default model.
-4. If no model is available, the decision stays `ask`.
+4. If no model is available, the plugin applies `on_failure` (default `ask`).
 
 The plugin reads the session model from the session and caches it for 60
 seconds. A strong session model increases cost and latency.
@@ -117,24 +141,24 @@ seconds. A strong session model increases cost and latency.
 | `auto` | Review the action and use the decision. |
 
 The default is `off`. Set the global mode with the `mode` option. The plugin
-reads this option when it starts and does not keep a separate global state.
-The TUI commands change only the current session.
+reads this option when it loads the configuration and does not keep a separate
+global state. The TUI commands change only the current session.
 
-## Dangerous actions
+## Review policies
 
-Set `on_danger` in the configuration file to `ask` or `deny`. The TUI commands
-do not change this value.
+These options set the effect for each review result. The TUI commands do not
+change them.
 
-- `ask` sends the action to the user.
-- `deny` blocks the action.
+| Option | Applies to | Default |
+| --- | --- | --- |
+| `on_danger` | A model `deny` verdict and a dangerous pattern match | `deny` |
+| `on_ask` | A model `ask` verdict | `ask` |
+| `on_failure` | A failed, timed-out, invalid, or unavailable review | `ask` |
 
-The setting applies to a model verdict of `deny` and to the built-in dangerous
-patterns. The default is `deny`.
-
-`on_ask` sets the effect for a model verdict of `ask`. `on_failure` sets the
-effect when a review fails. Both default to `ask`. Use `deny` only for workers
-that cannot approve actions, because it also blocks valid actions that need a
-decision.
+The value is `ask` or `deny`. `ask` shows the approval dialog, and `deny` blocks
+the action. If you set `on_ask` or `on_failure` to `deny`, valid actions that
+need a decision are also blocked. Use `deny` only for workers that cannot
+approve actions.
 
 ## Commands
 
@@ -157,7 +181,7 @@ Other clients can call the RPC method `permission-gate.run` with `text` and
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `mode` | `off` | Global mode. The plugin reads it when it starts. |
+| `mode` | `off` | Global mode. The plugin reads it when it loads the configuration. |
 | `model` | `session` | `session` uses the session model, and `provider/model` sets a fixed model. |
 | `variant` | `low` | Variant for an explicit `provider/model`. Use `none` to omit it. |
 | `timeout_ms` | `2500` | Time limit for one review. |
@@ -167,12 +191,71 @@ Other clients can call the RPC method `permission-gate.run` with `text` and
 | `language` | `Japanese` | Language for `reason` and `hint`. |
 | `cache_ttl_ms` | `600000` | Time to keep one decision in the cache. |
 | `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | Audit log file. |
-| `auto_agents` | `[]` | Agents that always use `auto`. A session override wins. |
+| `auto_agents` | `[]` | Agent names that use `auto`. A session override wins. |
 | `skip_actions` | `["question","external_directory","subagent"]` | Actions that the plugin does not review. |
 | `force_ask_patterns` | `[]` | Extra regular expressions that count as dangerous. |
 
-`auto_agents` is useful for orchestration. Set the worker agent name here. Each
-new worker session starts in `auto` mode.
+### All options
+
+This example sets every option. Omit an option to use its default. The table
+above lists the defaults. The array options show examples. Use an absolute path
+for `audit_path`; the plugin does not expand `~`.
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "off",                    // off | dry-run | auto
+        "model": "session",               // session | provider/model
+        "variant": "low",                 // only for a fixed provider/model
+        "timeout_ms": 2500,
+        "on_danger": "deny",              // ask | deny
+        "on_ask": "ask",                  // ask | deny
+        "on_failure": "ask",              // ask | deny
+        "language": "Japanese",           // reason and hint language
+        "cache_ttl_ms": 600000,
+        "audit_path": "/absolute/path/to/permission-gate.jsonl",
+        "auto_agents": ["worker"],  // agents that always use auto
+        "skip_actions": ["question", "external_directory", "subagent"],
+        "force_ask_patterns": ["\\bterraform\\s+destroy\\b", "\\bkubectl\\s+delete\\b"],
+      },
+    },
+  ],
+}
+```
+
+The same example for a local clone is in `examples/opencode.jsonc`.
+
+### `auto_agents` example
+
+`auto_agents` treats sessions that run under the listed agent names as `auto`.
+Use it for workers and subagents that must not wait for a manual
+`/permission-gate-auto` command.
+
+```jsonc
+{
+  "plugins": [
+    {
+      "package": "github:fateshelled/opencode-permission-gate",
+      "options": {
+        "mode": "off",
+        "auto_agents": ["worker"],
+      },
+    },
+  ],
+}
+```
+
+The mode order is:
+
+1. The session override (`/permission-gate-off`, and so on)
+2. A match in `auto_agents`
+3. The global `mode`
+
+`auto_agents` changes only the mode. It does not change the model, `timeout_ms`,
+`on_danger`, or other options. It does not override an explicit `deny` rule.
 
 ## Audit log
 
