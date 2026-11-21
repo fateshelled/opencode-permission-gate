@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-permission-gate",
+  "version": "0.1.0",
+  "description": "LLM-based permission gate for OpenCode. It reviews ask decisions and can allow, ask, or deny them.",
+  "type": "module",
+  "license": "MIT",
+  "author": "fateshelled",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fateshelled/opencode-permission-gate.git"
+  },
+  "homepage": "https://github.com/fateshelled/opencode-permission-gate#readme",
+  "bugs": {
+    "url": "https://github.com/fateshelled/opencode-permission-gate/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "permissions",
+    "guardrails",
+    "security",
+    "llm",
+    "agent"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.ts",
+    "./rpc": "./src/rpc.ts"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "^2.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.3"
+  }
+}

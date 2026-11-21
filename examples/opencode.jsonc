@@ -1,0 +1,13 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": [
+    {
+      "package": "/path/to/opencode-permission-gate",
+      "options": {
+        "mode": "off",
+        "model": "session",
+        "on_danger": "deny"
+      }
+    }
+  ]
+}
