@@ -88,9 +88,10 @@ The plugin registers `ctx.permission.hook("evaluate")`.
 The model sees the action, the resources, the agent name, and the project
 directory. It does not read the session transcript.
 
-If the decision stays `ask`, the plugin shows the reason in a `permission-gate`
-toast. Use the toast and the approval dialog to decide what to check. If the
-model review fails, the toast also shows that condition.
+If the decision stays `ask`, the plugin shows the reason in a banner above the
+prompt. Use the banner and the approval dialog to decide what to check. The
+banner disappears automatically when you approve or reject the action. If the
+model review fails, the banner shows that condition too.
 
 ### Model selection
 

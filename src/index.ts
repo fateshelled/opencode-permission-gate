@@ -425,9 +425,9 @@ function buildMessage(effect: Effect, decision: Decision | undefined): string {
     return `permission-gate: ${decision?.reason ?? "blocked"} (blocked)`
   }
   if (!decision) {
-    return "permission-gate: the automatic review failed. Check the command and its target before you approve."
+    return "permission-gate: the automatic review failed | Check the command and its target before you approve."
   }
-  return `permission-gate: ${decision.reason} (check the command and its target before you approve)`
+  return `permission-gate: ${decision.reason} | Check the command and its target before you approve.`
 }
 
 async function evaluate(ctx: any, settings: Settings, event: any): Promise<void> {
@@ -451,7 +451,7 @@ async function evaluate(ctx: any, settings: Settings, event: any): Promise<void>
       event.effect = applied
       event.message = applied === "deny"
         ? "permission-gate: blocked by a dangerous pattern"
-        : "permission-gate: a dangerous pattern matched. Check the command and its target before you approve."
+        : "permission-gate: a dangerous pattern matched | Check the command and its target before you approve."
     }
     await writeAudit(settings, event, mode, applied, "forced by pattern")
     return

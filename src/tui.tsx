@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
+import { createEffect, createMemo, Show } from "solid-js"
 import { PermissionGate } from "./rpc"
 
 type MenuOption = {
@@ -25,6 +26,15 @@ const ACTIONS = [
   { suffix: "toggle", title: "Permission gate: toggle (session)", action: "toggle" },
   { suffix: "reset", title: "Permission gate: reset (session)", action: "reset" },
 ]
+
+function splitMessage(message: string): { reason: string; hint: string } {
+  const body = message.replace(/^permission-gate:\s*/, "")
+  const index = body.indexOf(" | ")
+  if (index < 0) {
+    return { reason: body, hint: "" }
+  }
+  return { reason: body.slice(0, index), hint: body.slice(index + 3) }
+}
 
 export default Plugin.define({
   id: "permission-gate.tui",
@@ -86,18 +96,43 @@ export default Plugin.define({
       await runAction(value)
     }
 
-    const stopPermission = context.data.on("permission.asked", (event) => {
-      const message = event.data.message
-      if (!message?.startsWith("permission-gate:")) {
-        return
-      }
-      context.ui.toast.show({
-        title: "permission-gate",
-        message,
-        variant: "warning",
-        duration: 15000,
-        sessionID: event.data.sessionID,
+    const PermissionBanner = (props: { sessionID: string }) => {
+      createEffect(() => {
+        void context.data.session.permission.sync(props.sessionID)
       })
+
+      const message = createMemo(() => {
+        const requests = context.data.session.permission.list(props.sessionID) ?? []
+        return requests
+          .map((request) => request.message)
+          .find((value): value is string => !!value?.startsWith("permission-gate:")) ?? ""
+      })
+      const parts = createMemo(() => splitMessage(message()))
+
+      return (
+        <Show when={message()}>
+          <box
+            border
+            borderStyle="rounded"
+            borderColor={context.theme.text.feedback.warning.base}
+            backgroundColor={context.theme.background.feedback.warning.base}
+            title="permission-gate"
+            titleAlignment="left"
+            paddingX={1}
+            marginTop={1}
+          >
+            <text fg={context.theme.text.feedback.warning.base}>
+              <b>{parts().reason}</b>
+              <span>{parts().hint ? ` ${parts().hint}` : ""}</span>
+            </text>
+          </box>
+        </Show>
+      )
+    }
+
+    const removeBanner = context.ui.slot({
+      append: "session.composer.top",
+      render: ({ sessionID }) => <PermissionBanner sessionID={sessionID} />,
     })
 
     context.keymap.layer(() => ({
@@ -124,7 +159,7 @@ export default Plugin.define({
     }))
 
     return () => {
-      stopPermission()
+      removeBanner()
     }
   },
 })

@@ -25,12 +25,13 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./tui": "./src/tui.ts",
+    "./tui": "./src/tui.tsx",
     "./rpc": "./src/rpc.ts"
   },
   "files": [
     "src",
     "README.md",
+    "README_eng.md",
     "LICENSE"
   ],
   "scripts": {
@@ -39,8 +40,17 @@
   "dependencies": {
     "@opencode/plugin": "^2.3.2"
   },
+  "peerDependencies": {
+    "@opentui/core": ">=0.6.6",
+    "@opentui/solid": ">=0.6.6",
+    "solid-js": ">=1.9.0"
+  },
   "devDependencies": {
+    "@opencode/theme": "^2.3.2",
+    "@opentui/core": "^0.9.7",
+    "@opentui/solid": "^0.9.7",
     "@types/node": "^24.0.0",
+    "solid-js": "^1.9.20",
     "typescript": "^5.8.3"
   }
 }
