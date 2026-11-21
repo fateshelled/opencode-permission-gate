@@ -86,12 +86,10 @@ The plugin registers `ctx.permission.hook("evaluate")`.
 - The plugin writes one JSON line for each decision to the audit log.
 
 The model sees the action, the resources, the agent name, the project
-directory, and the latest user messages. It uses up to the last three user
-messages, limited to 100 characters in total, to detect your language. It does
-not read the rest of the session transcript.
+directory.
 
-The model writes `reason` and `hint` in the language of the latest user message.
-If it cannot detect the language, it uses English.
+The model writes `reason` and `hint` in the language set by the `language`
+option. The default is `Japanese`.
 
 If the decision stays `ask`, the plugin shows the reason in a banner above the
 prompt. Use the banner and the approval dialog to decide what to check. The
@@ -166,6 +164,7 @@ Other clients can call the RPC method `permission-gate.run` with `text` and
 | `on_danger` | `deny` | Effect for a dangerous verdict: `ask` or `deny`. |
 | `on_ask` | `ask` | Effect for a model `ask` verdict: `ask` or `deny`. |
 | `on_failure` | `ask` | Effect when the review fails: `ask` or `deny`. |
+| `language` | `Japanese` | Language for `reason` and `hint`. |
 | `cache_ttl_ms` | `600000` | Time to keep one decision in the cache. |
 | `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | Audit log file. |
 | `auto_agents` | `[]` | Agents that always use `auto`. A session override wins. |
