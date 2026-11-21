@@ -135,11 +135,11 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 
 ## モード
 
-| モード | 動作 |
-| --- | --- |
-| `off` | 何もしません。 |
+| モード    | 動作                                                             |
+| --------- | ---------------------------------------------------------------- |
+| `off`     | 何もしません。                                                   |
 | `dry-run` | アクションをレビューして監査ログを書き込み、判定は変更しません。 |
-| `auto` | アクションをレビューし、判定を使用します。 |
+| `auto`    | アクションをレビューし、判定を使用します。                       |
 
 既定は `off` です。グローバルモードは `mode` オプションで設定します。
 プラグインは設定の読み込み時にこのオプションを読み取り、別のグローバル状態は
@@ -150,11 +150,11 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 設定ファイルの次のオプションで、レビュー結果ごとの動作を決めます。
 TUI コマンドはこれらの値を変更しません。
 
-| オプション | 対象 | 既定値 |
-| --- | --- | --- |
-| `on_danger` | モデルの `deny`、危険パターン一致 | `deny` |
-| `on_ask` | モデルの `ask` | `ask` |
-| `on_failure` | レビューの失敗・タイムアウト・不正出力・モデルなし | `ask` |
+| オプション   | 対象                                               | 既定値 |
+| ------------ | -------------------------------------------------- | ------ |
+| `on_danger`  | モデルの `deny`、危険パターン一致                  | `deny` |
+| `on_ask`     | モデルの `ask`                                     | `ask`  |
+| `on_failure` | レビューの失敗・タイムアウト・不正出力・モデルなし | `ask`  |
 
 値は `ask` または `deny` です。`ask` は承認ダイアログを表示し、`deny` は
 アクションをブロックします。`on_ask` と `on_failure` に `deny` を設定すると、
@@ -165,36 +165,36 @@ TUI コマンドはこれらの値を変更しません。
 
 TUI で次のコマンドを使用します。各コマンドは、現在のセッションだけを変更します。
 
-| コマンド | 結果 |
-| --- | --- |
-| `/permission-gate` | メニューを開きます。 |
-| `/permission-gate-status` | 状態をダイアログに表示します。 |
-| `/permission-gate-auto` | このセッションで auto モードを使用します。 |
+| コマンド                   | 結果                                          |
+| -------------------------- | --------------------------------------------- |
+| `/permission-gate`         | メニューを開きます。                          |
+| `/permission-gate-status`  | 状態をダイアログに表示します。                |
+| `/permission-gate-auto`    | このセッションで auto モードを使用します。    |
 | `/permission-gate-dry-run` | このセッションで dry-run モードを使用します。 |
-| `/permission-gate-off` | このセッションで off モードを使用します。 |
-| `/permission-gate-toggle` | auto と off を切り替えます。 |
-| `/permission-gate-reset` | セッションの上書きを削除します。 |
+| `/permission-gate-off`     | このセッションで off モードを使用します。     |
+| `/permission-gate-toggle`  | auto と off を切り替えます。                  |
+| `/permission-gate-reset`   | セッションの上書きを削除します。              |
 
 他のクライアントは、`text` と `sessionID` を指定して RPC メソッド
 `permission-gate.run` を呼び出せます。
 
 ## 設定
 
-| オプション | 既定値 | 意味 |
-| --- | --- | --- |
-| `mode` | `off` | グローバルモード。プラグインが設定の読み込み時に読み取ります。 |
-| `model` | `session` | `session` はセッションモデルを、`provider/model` は固定モデルを使用します。 |
-| `variant` | `low` | 明示的な `provider/model` のバリアントで、省略する場合は `none` を使用します。 |
-| `timeout_ms` | `2500` | 1 回のレビューの制限時間。 |
-| `on_danger` | `deny` | 危険な判定に対する効果。`ask` または `deny`。 |
-| `on_ask` | `ask` | モデルの `ask` 判定に対する効果。`ask` または `deny`。 |
-| `on_failure` | `ask` | レビュー失敗に対する効果。`ask` または `deny`。 |
-| `language` | `Japanese` | `reason` と `hint` を書く言語。 |
-| `cache_ttl_ms` | `600000` | 1 つの判定をキャッシュに保持する時間。 |
-| `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | 監査ログのファイル。 |
-| `auto_agents` | `[]` | `auto` として扱うエージェント名。セッション個別の上書きが優先されます。 |
-| `skip_actions` | `["question","external_directory","subagent"]` | プラグインがレビューしないアクション。 |
-| `force_ask_patterns` | `[]` | 危険と見なす追加の正規表現。 |
+| オプション           | 既定値                                          | 意味                                                                           |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| `mode`               | `off`                                           | グローバルモード。プラグインが設定の読み込み時に読み取ります。                 |
+| `model`              | `session`                                       | `session` はセッションモデルを、`provider/model` は固定モデルを使用します。    |
+| `variant`            | `low`                                           | 明示的な `provider/model` のバリアントで、省略する場合は `none` を使用します。 |
+| `timeout_ms`         | `2500`                                          | 1 回のレビューの制限時間。                                                     |
+| `on_danger`          | `deny`                                          | 危険な判定に対する効果。`ask` または `deny`。                                  |
+| `on_ask`             | `ask`                                           | モデルの `ask` 判定に対する効果。`ask` または `deny`。                         |
+| `on_failure`         | `ask`                                           | レビュー失敗に対する効果。`ask` または `deny`。                                |
+| `language`           | `Japanese`                                      | `reason` と `hint` を書く言語。                                                |
+| `cache_ttl_ms`       | `600000`                                        | 1 つの判定をキャッシュに保持する時間。                                         |
+| `audit_path`         | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | 監査ログのファイル。                                                           |
+| `auto_agents`        | `[]`                                            | `auto` として扱うエージェント名。セッション個別の上書きが優先されます。        |
+| `skip_actions`       | `["question","external_directory","subagent"]`  | プラグインがレビューしないアクション。                                         |
+| `force_ask_patterns` | `[]`                                            | 危険と見なす追加の正規表現。                                                   |
 
 ### すべてのオプション
 

@@ -134,11 +134,11 @@ seconds. A strong session model increases cost and latency.
 
 ## Modes
 
-| Mode | Behavior |
-| --- | --- |
-| `off` | Do nothing. |
+| Mode      | Behavior                                                                 |
+| --------- | ------------------------------------------------------------------------ |
+| `off`     | Do nothing.                                                              |
 | `dry-run` | Review the action and write the audit log without changing the decision. |
-| `auto` | Review the action and use the decision. |
+| `auto`    | Review the action and use the decision.                                  |
 
 The default is `off`. Set the global mode with the `mode` option. The plugin
 reads this option when it loads the configuration and does not keep a separate
@@ -149,11 +149,11 @@ global state. The TUI commands change only the current session.
 These options set the effect for each review result. The TUI commands do not
 change them.
 
-| Option | Applies to | Default |
-| --- | --- | --- |
-| `on_danger` | A model `deny` verdict and a dangerous pattern match | `deny` |
-| `on_ask` | A model `ask` verdict | `ask` |
-| `on_failure` | A failed, timed-out, invalid, or unavailable review | `ask` |
+| Option       | Applies to                                           | Default |
+| ------------ | ---------------------------------------------------- | ------- |
+| `on_danger`  | A model `deny` verdict and a dangerous pattern match | `deny`  |
+| `on_ask`     | A model `ask` verdict                                | `ask`   |
+| `on_failure` | A failed, timed-out, invalid, or unavailable review  | `ask`   |
 
 The value is `ask` or `deny`. `ask` shows the approval dialog, and `deny` blocks
 the action. If you set `on_ask` or `on_failure` to `deny`, valid actions that
@@ -164,36 +164,36 @@ approve actions.
 
 Use these commands in the TUI. Each command changes the current session only.
 
-| Command | Result |
-| --- | --- |
-| `/permission-gate` | Open the menu. |
-| `/permission-gate-status` | Show the state in a dialog. |
-| `/permission-gate-auto` | Use auto mode in this session. |
+| Command                    | Result                            |
+| -------------------------- | --------------------------------- |
+| `/permission-gate`         | Open the menu.                    |
+| `/permission-gate-status`  | Show the state in a dialog.       |
+| `/permission-gate-auto`    | Use auto mode in this session.    |
 | `/permission-gate-dry-run` | Use dry-run mode in this session. |
-| `/permission-gate-off` | Use off mode in this session. |
-| `/permission-gate-toggle` | Switch between auto and off. |
-| `/permission-gate-reset` | Remove the session override. |
+| `/permission-gate-off`     | Use off mode in this session.     |
+| `/permission-gate-toggle`  | Switch between auto and off.      |
+| `/permission-gate-reset`   | Remove the session override.      |
 
 Other clients can call the RPC method `permission-gate.run` with `text` and
 `sessionID`.
 
 ## Configuration
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `mode` | `off` | Global mode. The plugin reads it when it loads the configuration. |
-| `model` | `session` | `session` uses the session model, and `provider/model` sets a fixed model. |
-| `variant` | `low` | Variant for an explicit `provider/model`. Use `none` to omit it. |
-| `timeout_ms` | `2500` | Time limit for one review. |
-| `on_danger` | `deny` | Effect for a dangerous verdict: `ask` or `deny`. |
-| `on_ask` | `ask` | Effect for a model `ask` verdict: `ask` or `deny`. |
-| `on_failure` | `ask` | Effect when the review fails: `ask` or `deny`. |
-| `language` | `Japanese` | Language for `reason` and `hint`. |
-| `cache_ttl_ms` | `600000` | Time to keep one decision in the cache. |
-| `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | Audit log file. |
-| `auto_agents` | `[]` | Agent names that use `auto`. A session override wins. |
-| `skip_actions` | `["question","external_directory","subagent"]` | Actions that the plugin does not review. |
-| `force_ask_patterns` | `[]` | Extra regular expressions that count as dangerous. |
+| Option               | Default                                         | Meaning                                                                    |
+| -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| `mode`               | `off`                                           | Global mode. The plugin reads it when it loads the configuration.          |
+| `model`              | `session`                                       | `session` uses the session model, and `provider/model` sets a fixed model. |
+| `variant`            | `low`                                           | Variant for an explicit `provider/model`. Use `none` to omit it.           |
+| `timeout_ms`         | `2500`                                          | Time limit for one review.                                                 |
+| `on_danger`          | `deny`                                          | Effect for a dangerous verdict: `ask` or `deny`.                           |
+| `on_ask`             | `ask`                                           | Effect for a model `ask` verdict: `ask` or `deny`.                         |
+| `on_failure`         | `ask`                                           | Effect when the review fails: `ask` or `deny`.                             |
+| `language`           | `Japanese`                                      | Language for `reason` and `hint`.                                          |
+| `cache_ttl_ms`       | `600000`                                        | Time to keep one decision in the cache.                                    |
+| `audit_path`         | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | Audit log file.                                                            |
+| `auto_agents`        | `[]`                                            | Agent names that use `auto`. A session override wins.                      |
+| `skip_actions`       | `["question","external_directory","subagent"]`  | Actions that the plugin does not review.                                   |
+| `force_ask_patterns` | `[]`                                            | Extra regular expressions that count as dangerous.                         |
 
 ### All options
 
