@@ -25,11 +25,12 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./tui": "./src/tui.tsx",
+    "./tui": "./src/tui.ts",
     "./rpc": "./src/rpc.ts"
   },
   "files": [
     "src",
+    "tsconfig.json",
     "README.md",
     "README_eng.md",
     "LICENSE"

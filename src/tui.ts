@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
+import { jsx, jsxs } from "@opentui/solid/jsx-runtime"
 import { createEffect, createMemo, Show } from "solid-js"
 import { PermissionGate } from "./rpc"
 
@@ -109,30 +110,50 @@ export default Plugin.define({
       })
       const parts = createMemo(() => splitMessage(message()))
 
-      return (
-        <Show when={message()}>
-          <box
-            border
-            borderStyle="rounded"
-            borderColor={context.theme.text.feedback.warning.base}
-            backgroundColor={context.theme.background.feedback.warning.base}
-            title="permission-gate"
-            titleAlignment="left"
-            paddingX={1}
-            marginTop={1}
-          >
-            <text fg={context.theme.text.feedback.warning.base}>
-              <b>{parts().reason}</b>
-              <span>{parts().hint ? ` ${parts().hint}` : ""}</span>
-            </text>
-          </box>
-        </Show>
-      )
+      const banner = () =>
+        jsxs("box", {
+          border: true,
+          borderStyle: "rounded",
+          borderColor: context.theme.text.feedback.warning.base,
+          backgroundColor: context.theme.background.feedback.warning.base,
+          title: "permission-gate",
+          titleAlignment: "left",
+          paddingX: 1,
+          marginTop: 1,
+          get children() {
+            return jsxs("text", {
+              fg: context.theme.text.feedback.warning.base,
+              get children() {
+                return [
+                  jsx("b", {
+                    get children() {
+                      return parts().reason
+                    },
+                  }),
+                  jsx("span", {
+                    get children() {
+                      return parts().hint ? ` ${parts().hint}` : ""
+                    },
+                  }),
+                ]
+              },
+            })
+          },
+        })
+
+      return jsx(Show as any, {
+        get when() {
+          return message()
+        },
+        get children() {
+          return banner()
+        },
+      })
     }
 
     const removeBanner = context.ui.slot({
       append: "session.composer.top",
-      render: ({ sessionID }) => <PermissionBanner sessionID={sessionID} />,
+      render: ({ sessionID }) => jsx(PermissionBanner as any, { sessionID }),
     })
 
     context.keymap.layer(() => ({
