@@ -85,8 +85,13 @@ The plugin registers `ctx.permission.hook("evaluate")`.
   `ask`.
 - The plugin writes one JSON line for each decision to the audit log.
 
-The model sees the action, the resources, the agent name, and the project
-directory. It does not read the session transcript.
+The model sees the action, the resources, the agent name, the project
+directory, and the latest user message. It uses only the first 100 characters
+of the user message to detect your language. It does not read the rest of the
+session transcript.
+
+The model writes `reason` and `hint` in the language of the latest user message.
+If it cannot detect the language, it uses English.
 
 If the decision stays `ask`, the plugin shows the reason in a banner above the
 prompt. Use the banner and the approval dialog to decide what to check. The
