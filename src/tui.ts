@@ -1,6 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { jsx, jsxs } from "@opentui/solid/jsx-runtime"
-import { createEffect, createMemo, Show } from "solid-js"
+import { createEffect, createMemo, on, Show } from "solid-js"
+import { bannerLabel, bannerRequest, permissionSessionIDs } from "./permission-banner"
 import { PermissionGate } from "./rpc"
 
 type MenuOption = {
@@ -98,16 +99,58 @@ export default Plugin.define({
     }
 
     const PermissionBanner = (props: { sessionID: string }) => {
-      createEffect(() => {
-        void context.data.session.permission.sync(props.sessionID)
-      })
+      const sessionIDs = createMemo(() =>
+        permissionSessionIDs(props.sessionID, context.data.session.family(props.sessionID)),
+      )
+      const syncedSessions = new Set<string>()
+      createEffect(on(sessionIDs, (ids) => {
+        const added = ids.filter((id) => !syncedSessions.has(id))
+        for (const id of added) {
+          syncedSessions.add(id)
+        }
+        void Promise.allSettled(added.flatMap((id) => [
+          context.data.session.sync(id),
+          context.data.session.permission.sync(id),
+        ]))
+      }))
 
-      const message = createMemo(() => {
-        const requests = context.data.session.permission.list(props.sessionID) ?? []
-        return requests
-          .map((request) => request.message)
-          .find((value): value is string => !!value?.startsWith("permission-gate:")) ?? ""
+      const request = createMemo(() => bannerRequest(
+        sessionIDs(),
+        (id) => context.data.session.permission.list(id),
+      ))
+      const syncedMessages = new Set<string>()
+      const syncedAgents = new Set<string>()
+      createEffect(on(() => {
+        const selected = request()
+        if (!selected) {
+          return undefined
+        }
+        return {
+          sessionID: selected.sessionID,
+          location: context.data.session.get(selected.sessionID)?.location
+            ?? context.location ?? context.data.location.default(),
+        }
+      }, (selected) => {
+        if (!selected) {
+          return
+        }
+        const jobs: Promise<void>[] = []
+        if (!syncedMessages.has(selected.sessionID)) {
+          syncedMessages.add(selected.sessionID)
+          jobs.push(context.data.session.message.sync(selected.sessionID))
+        }
+        const locationKey = JSON.stringify(selected.location)
+        if (!syncedAgents.has(locationKey)) {
+          syncedAgents.add(locationKey)
+          jobs.push(context.data.location.agent.sync(selected.location))
+        }
+        void Promise.allSettled(jobs)
+      }))
+      const label = createMemo(() => {
+        const selected = request()
+        return selected ? bannerLabel(context.data, selected) : ""
       })
+      const message = createMemo(() => request()?.message ?? "")
       const parts = createMemo(() => splitMessage(message()))
 
       const banner = () =>
@@ -116,7 +159,9 @@ export default Plugin.define({
           borderStyle: "rounded",
           borderColor: context.theme.text.feedback.warning.base,
           backgroundColor: context.theme.background.feedback.warning.base,
-          title: "permission-gate",
+          get title() {
+            return `permission-gate · ${label()}`
+          },
           titleAlignment: "left",
           paddingX: 1,
           marginTop: 1,
