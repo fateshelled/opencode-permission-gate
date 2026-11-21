@@ -17,6 +17,7 @@
         // Must be an absolute path.
         "audit_path": "/absolute/path/to/permission-gate.jsonl",
         "auto_agents": ["worker"],
+        "inherit_to_child_sessions": true,
         "skip_actions": ["question", "external_directory", "subagent"],
         "force_ask_patterns": ["\\bterraform\\s+destroy\\b", "\\bkubectl\\s+delete\\b"],
       },

@@ -23,6 +23,7 @@ type Settings = {
   cacheTtlMs: number
   auditPath: string
   autoAgents: string[]
+  inheritToChildSessions: boolean
   skipActions: string[]
   forceAskPatterns: RegExp[]
   initialMode: Mode
@@ -204,6 +205,9 @@ function buildSettings(ctx: any): Settings {
     cacheTtlMs: Math.max(1_000, asNumber(options.cache_ttl_ms, 600_000)),
     auditPath: asString(options.audit_path, DEFAULT_AUDIT_PATH),
     autoAgents: asStringList(options.auto_agents),
+    inheritToChildSessions: typeof options.inherit_to_child_sessions === "boolean"
+      ? options.inherit_to_child_sessions
+      : true,
     skipActions: skipActions.length > 0 ? skipActions : ["question", "external_directory", "subagent"],
     forceAskPatterns: parsePatterns(options.force_ask_patterns),
     initialMode: isMode(options.mode) ? options.mode : "off",
@@ -384,20 +388,67 @@ async function decide(ctx: any, settings: Settings, event: any): Promise<Decisio
   return task
 }
 
-async function modeFor(ctx: any, settings: Settings, event: any): Promise<Mode> {
-  const known = state.sessionModes.get(event.sessionID)
+type ModeContext = {
+  storage: { get(key: string): Promise<unknown> }
+  session: { get(input: { sessionID: string }): Promise<unknown> }
+}
+
+async function explicitModeFor(ctx: ModeContext, sessionID: string): Promise<Mode | undefined> {
+  const known = state.sessionModes.get(sessionID)
   if (known) {
     return known
   }
 
   try {
-    const stored = await ctx.storage.get(`session-mode:${event.sessionID}`)
+    const stored = await ctx.storage.get(`session-mode:${sessionID}`)
     if (isMode(stored)) {
-      state.sessionModes.set(event.sessionID, stored)
+      state.sessionModes.set(sessionID, stored)
       return stored
     }
   } catch {
-    // Fall back to the agent and global settings.
+    // Continue without a stored mode.
+  }
+  return undefined
+}
+
+async function parentIDFor(ctx: ModeContext, sessionID: string): Promise<string | undefined> {
+  try {
+    const session = await ctx.session.get({ sessionID })
+    const info = session && typeof session === "object" && "data" in session ? session.data : session
+    if (info && typeof info === "object" && "parentID" in info) {
+      return typeof info.parentID === "string" && info.parentID.length > 0 ? info.parentID : undefined
+    }
+  } catch {
+    // Continue without a parent session.
+  }
+  return undefined
+}
+
+async function modeFor(
+  ctx: ModeContext,
+  settings: Settings,
+  event: { sessionID: string; agent?: string },
+): Promise<Mode> {
+  const own = await explicitModeFor(ctx, event.sessionID)
+  if (own) {
+    return own
+  }
+
+  if (settings.inheritToChildSessions && event.sessionID) {
+    const visited = new Set([event.sessionID])
+    let sessionID = event.sessionID
+    while (true) {
+      const parentID = await parentIDFor(ctx, sessionID)
+      if (!parentID || visited.has(parentID)) {
+        break
+      }
+      visited.add(parentID)
+      const inherited = await explicitModeFor(ctx, parentID)
+      if (inherited) {
+        return inherited
+      }
+      sessionID = parentID
+    }
   }
 
   if (event.agent && settings.autoAgents.includes(event.agent)) {
