@@ -86,9 +86,9 @@ The plugin registers `ctx.permission.hook("evaluate")`.
 - The plugin writes one JSON line for each decision to the audit log.
 
 The model sees the action, the resources, the agent name, the project
-directory, and the latest user message. It uses only the first 100 characters
-of the user message to detect your language. It does not read the rest of the
-session transcript.
+directory, and the latest user messages. It uses up to the last three user
+messages, limited to 100 characters in total, to detect your language. It does
+not read the rest of the session transcript.
 
 The model writes `reason` and `hint` in the language of the latest user message.
 If it cannot detect the language, it uses English.
