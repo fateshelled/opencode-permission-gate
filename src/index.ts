@@ -485,6 +485,11 @@ async function writeAudit(
   }
 }
 
+function buildDryRunMessage(effect: Effect, decision: Decision | undefined): string {
+  const hint = decision?.hint ? ` | ${decision.hint}` : ""
+  return `permission-gate: dry-run (proposed ${effect}; unchanged): ${decision?.reason ?? "review unavailable"}${hint}`
+}
+
 function buildMessage(effect: Effect, decision: Decision | undefined): string {
   if (effect === "allow") {
     return `permission-gate: ${decision?.reason ?? "allowed"}`
@@ -523,6 +528,8 @@ async function evaluate(ctx: any, settings: Settings, event: any): Promise<void>
       event.message = applied === "deny"
         ? "permission-gate: blocked by a dangerous pattern"
         : "permission-gate: dangerous pattern"
+    } else {
+      event.message = buildDryRunMessage(applied, { effect: applied, reason: "dangerous pattern" })
     }
     await writeAudit(settings, event, mode, applied, "forced by pattern")
     return
@@ -545,6 +552,7 @@ async function evaluate(ctx: any, settings: Settings, event: any): Promise<void>
   )
 
   if (mode === "dry-run") {
+    event.message = buildDryRunMessage(applied, decision)
     return
   }
 

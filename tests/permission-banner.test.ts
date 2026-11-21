@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import type { Data } from "@opencode/plugin/tui/context"
-import { bannerLabel, bannerRequest, permissionSessionIDs } from "../src/permission-banner"
+import { bannerLabel, bannerRequest, permissionSessionIDs, splitMessage } from "../src/permission-banner"
 
 type Request = NonNullable<ReturnType<Data["session"]["permission"]["list"]>>[number]
 
@@ -10,6 +10,14 @@ function request(sessionID: string, id: string, message?: string): Request {
 }
 
 const gate = (sessionID: string, id: string) => request(sessionID, id, "permission-gate: Review | Check")
+
+test("message parsing keeps colons and splits only the first hint delimiter", () => {
+  assert.deepEqual(splitMessage("permission-gate: Reason: details | Hint: details | more"), {
+    reason: "Reason: details", hint: "Hint: details | more",
+  })
+  assert.deepEqual(splitMessage("permission-gate: Reason: details"), { reason: "Reason: details", hint: "" })
+  assert.deepEqual(splitMessage(""), { reason: "", hint: "" })
+})
 
 test("current session comes first and duplicate family IDs are removed without sorting", () => {
   assert.deepEqual(permissionSessionIDs("main", ["child-b", "main", "child-a", "child-b"]), [

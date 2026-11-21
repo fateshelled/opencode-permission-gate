@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin/tui"
 import { jsx, jsxs } from "@opentui/solid/jsx-runtime"
 import { createEffect, createMemo, on, Show } from "solid-js"
-import { bannerLabel, bannerRequest, permissionSessionIDs } from "./permission-banner"
+import { bannerLabel, bannerRequest, permissionSessionIDs, splitMessage } from "./permission-banner"
 import { PermissionGate } from "./rpc"
 
 type MenuOption = {
@@ -14,7 +14,7 @@ type MenuOption = {
 const SESSION_MENU: MenuOption[] = [
   { title: "Status", value: "status", description: "Show the current mode", category: "State" },
   { title: "Auto", value: "auto", description: "Judge and apply ask decisions", category: "Session" },
-  { title: "Dry-run", value: "dry-run", description: "Log decisions only", category: "Session" },
+  { title: "Dry-run", value: "dry-run", description: "Show and log proposals without applying them", category: "Session" },
   { title: "Off", value: "off", description: "Do not judge", category: "Session" },
   { title: "Toggle", value: "toggle", description: "Switch between auto and off", category: "Session" },
   { title: "Reset", value: "reset", description: "Remove the session override", category: "Session" },
@@ -28,15 +28,6 @@ const ACTIONS = [
   { suffix: "toggle", title: "Permission gate: toggle (session)", action: "toggle" },
   { suffix: "reset", title: "Permission gate: reset (session)", action: "reset" },
 ]
-
-function splitMessage(message: string): { reason: string; hint: string } {
-  const body = message.replace(/^permission-gate:\s*/, "")
-  const index = body.indexOf(" | ")
-  if (index < 0) {
-    return { reason: body, hint: "" }
-  }
-  return { reason: body.slice(0, index), hint: body.slice(index + 3) }
-}
 
 export default Plugin.define({
   id: "permission-gate.tui",

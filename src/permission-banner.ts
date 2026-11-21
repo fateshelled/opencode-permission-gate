@@ -2,6 +2,15 @@ import type { Data } from "@opencode/plugin/tui/context"
 
 type Request = NonNullable<ReturnType<Data["session"]["permission"]["list"]>>[number]
 
+export function splitMessage(message: string): { reason: string; hint: string } {
+  const body = message.replace(/^permission-gate:\s*/, "")
+  const index = body.indexOf(" | ")
+  if (index < 0) {
+    return { reason: body, hint: "" }
+  }
+  return { reason: body.slice(0, index), hint: body.slice(index + 3) }
+}
+
 export function permissionSessionIDs(sessionID: string, family: string[]): string[] {
   return [...new Set([sessionID, ...family])]
 }
