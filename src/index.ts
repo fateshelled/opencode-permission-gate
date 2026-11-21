@@ -27,12 +27,13 @@ type Settings = {
   skipActions: string[]
   forceAskPatterns: RegExp[]
   initialMode: Mode
-  initialOnDanger: DangerAction
+  onDanger: DangerAction
+  onAsk: DangerAction
+  onFailure: DangerAction
 }
 
 type State = {
   globalMode: Mode
-  onDanger: DangerAction
   sessionModes: Map<string, Mode>
   sessionModels: Map<string, SessionModelEntry>
   sessionSamples: Map<string, SampleEntry>
@@ -67,7 +68,6 @@ const SAMPLE_CHARS = 100
 
 const state: State = {
   globalMode: "off",
-  onDanger: "deny",
   sessionModes: new Map(),
   sessionModels: new Map(),
   sessionSamples: new Map(),
@@ -208,7 +208,9 @@ function buildSettings(ctx: any): Settings {
     skipActions: skipActions.length > 0 ? skipActions : ["question", "external_directory", "subagent"],
     forceAskPatterns: parsePatterns(options.force_ask_patterns),
     initialMode: isMode(options.mode) ? options.mode : "off",
-    initialOnDanger: isDangerAction(options.on_danger) ? options.on_danger : "deny",
+    onDanger: isDangerAction(options.on_danger) ? options.on_danger : "deny",
+    onAsk: isDangerAction(options.on_ask) ? options.on_ask : "ask",
+    onFailure: isDangerAction(options.on_failure) ? options.on_failure : "ask",
   }
 }
 
@@ -478,7 +480,9 @@ function buildMessage(effect: Effect, decision: Decision | undefined): string {
     return `permission-gate: ${decision?.reason ?? "allowed"}`
   }
   if (effect === "deny") {
-    return `permission-gate: ${decision?.reason ?? "blocked"} (blocked)`
+    return decision
+      ? `permission-gate: ${decision.reason} (blocked)`
+      : "permission-gate: review unavailable (blocked)"
   }
   if (!decision) {
     return "permission-gate: review unavailable"
@@ -503,7 +507,7 @@ async function evaluate(ctx: any, settings: Settings, event: any): Promise<void>
 
   const text = (event.resources ?? []).join("\n")
   if (matchesForceAsk(text, settings.forceAskPatterns)) {
-    const applied: Effect = state.onDanger
+    const applied: Effect = settings.onDanger
     if (mode !== "dry-run") {
       event.effect = applied
       event.message = applied === "deny"
@@ -515,8 +519,13 @@ async function evaluate(ctx: any, settings: Settings, event: any): Promise<void>
   }
 
   const decision = await decide(ctx, settings, event)
-  const judged = decision?.effect ?? "ask"
-  const applied: Effect = judged === "deny" ? state.onDanger : judged
+  const applied: Effect = !decision
+    ? settings.onFailure
+    : decision.effect === "deny"
+      ? settings.onDanger
+      : decision.effect === "ask"
+        ? settings.onAsk
+        : "allow"
   await writeAudit(
     settings,
     event,
@@ -563,7 +572,8 @@ async function runCommand(
     return {
       ok: true,
       message: [
-        `global=${state.globalMode} (config) session=${sessionMode} on_danger=${state.onDanger} (config)`,
+        `global=${state.globalMode} (config) session=${sessionMode}`,
+        `on_danger=${settings.onDanger} on_ask=${settings.onAsk} on_failure=${settings.onFailure} (config)`,
         `model=${modelLabel}`,
         `cache=${state.cache.size} degraded=${Date.now() < state.degradedUntil}`,
       ].join("\n"),
@@ -620,9 +630,8 @@ export default Plugin.define({
     const settings = buildSettings(ctx)
 
     // The configuration file is the only source of the global mode and the
-    // dangerous-action effect. The plugin does not store them.
+    // review effects. The plugin does not store them.
     state.globalMode = settings.initialMode
-    state.onDanger = settings.initialOnDanger
 
     try {
       await mkdir(dirname(settings.auditPath), { recursive: true })

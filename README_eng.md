@@ -133,6 +133,11 @@ do not change this value.
 The setting applies to a model verdict of `deny` and to the built-in dangerous
 patterns. The default is `deny`.
 
+`on_ask` sets the effect for a model verdict of `ask`. `on_failure` sets the
+effect when a review fails. Both default to `ask`. Use `deny` only for workers
+that cannot approve actions, because it also blocks valid actions that need a
+decision.
+
 ## Commands
 
 Use these commands in the TUI. Each command changes the current session only.
@@ -159,6 +164,8 @@ Other clients can call the RPC method `permission-gate.run` with `text` and
 | `variant` | `low` | Variant for an explicit `provider/model`. Use `none` to omit it. |
 | `timeout_ms` | `2500` | Time limit for one review. |
 | `on_danger` | `deny` | Effect for a dangerous verdict: `ask` or `deny`. |
+| `on_ask` | `ask` | Effect for a model `ask` verdict: `ask` or `deny`. |
+| `on_failure` | `ask` | Effect when the review fails: `ask` or `deny`. |
 | `cache_ttl_ms` | `600000` | Time to keep one decision in the cache. |
 | `audit_path` | `$XDG_DATA_HOME/opencode/permission-gate.jsonl` | Audit log file. |
 | `auto_agents` | `[]` | Agents that always use `auto`. A session override wins. |
