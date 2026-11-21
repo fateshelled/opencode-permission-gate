@@ -89,7 +89,7 @@ export default Plugin.define({
     const showMenu = async (options: MenuOption[]): Promise<void> => {
       const value = await context.ui.dialog.select({
         title: "Permission gate",
-        options: options as any,
+        options,
       })
       if (!value) {
         return
@@ -172,7 +172,7 @@ export default Plugin.define({
           id: `permission-gate.${command.suffix}`,
           title: command.title,
           group: "Permission gate",
-          palette: true,
+          palette: true as const,
           slash: { name: `permission-gate-${command.suffix}` },
           run: () => runAction(command.action),
         })),
