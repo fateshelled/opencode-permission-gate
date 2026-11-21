@@ -24,4 +24,5 @@ export const PermissionGate = Rpc.define({
       },
     },
   },
-})
+  events: {},
+} satisfies Rpc.PortableDefinition)
