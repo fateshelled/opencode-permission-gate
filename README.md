@@ -17,6 +17,7 @@ OpenCode がユーザー確認を求めた操作（`ask`）をレビューしま
 - **3つの動作モード**: `off`（無効）、`dry-run`（判定を変えずにレビュー）、`auto`（自動判定）を切り替えられます。
 - **柔軟な設定**: 既定の動作モード、危険な操作の扱い、レビュー理由の出力言語などを設定ファイルで指定できます。
 - **安全制御**: 危険と判断した操作をブロックするか、ユーザー確認に回すかを選択できます。
+- **拒否理由の特定**: OpenCode の設定ルールで拒否されたとき、拒否されたコマンド部分と一致したルールをツールエラーに追記します。
 - **監査ログの出力**: レビュー対象の判定結果を、1 行ずつの JSON 形式で記録します。
 - **TUI コマンド対応**: ターミナル操作中にモード切り替えや状態確認ができます。
 
@@ -122,7 +123,7 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 
 | モード    | 動作内容                                                                      |
 | :-------- | :---------------------------------------------------------------------------- |
-| `off`     | プラグインを停止し、何もしません（既定値）。                                  |
+| `off`     | レビューと権限判定の変更を停止します（既定値）。`explain_denials` は引き続き動作します。 |
 | `dry-run` | 提案結果をバナーに表示して監査ログに記録します。元の `ask` 判定は変えません。 |
 | `auto`    | レビュー結果に基づいて判定を `allow` / `deny` / `ask` に更新します。          |
 
@@ -135,7 +136,7 @@ opencode plugin add github:fateshelled/opencode-permission-gate
 プラグインは `ctx.permission.hook("evaluate")` を使って次の流れで動作します。
 
 1. **対象を確認する**: OpenCode の判定が `ask` で、`skip_actions` に含まれない操作だけを扱います。既存の `allow` と `deny` は変えません。
-2. **モードを確認する**: `off` なら何もしません。`dry-run` と `auto` では危険パターン、キャッシュの順に確認し、必要に応じてモデルで判定します。
+2. **モードを確認する**: `off` ならレビューしません。`dry-run` と `auto` では危険パターン、キャッシュの順に確認し、必要に応じてモデルで判定します。
 3. **結果を適用する**: `auto` ではレビュー結果と処理設定に従います。`dry-run` では元の `ask` を維持します。
 4. **ログを記録する**: 対象の操作を `dry-run` / `auto` で判定した場合だけ、監査ログに記録します。
 
@@ -146,6 +147,30 @@ JSON が不正でも、本文の `allow` / `ask` / `deny` から判定を読み�
 モデルの呼び出しや出力解析の失敗が 3 回累積すると、モデルレビューを 60 秒間停止します。 \
 停止中もキャッシュは使います。キャッシュに結果がなければ、`on_failure` を適用します。 \
 正常な判定を取得すると、失敗回数をリセットします。
+
+### 拒否されたコマンドの特定（`explain_denials`）
+
+OpenCode の設定ルールによる `deny` は、`permission` の `evaluate` フックを呼びません。 \
+そのため、プラグインはツールの実行後に呼ばれる `tool.hook("execute.after")` で失敗内容を調べます。 \
+拒否されたリソースと一致したルールを取得できる場合、次の情報をツールエラーのメッセージに追記します。
+
+- 拒否されたコマンド部分と、一致したルール
+- 同じ呼び出しの中で拒否されなかったコマンド部分
+
+パイプや `&&` で連結したコマンドでは、どの部分が拒否されたかをモデルが判別できます。 \
+この機能は動作モード（`off` / `dry-run` / `auto`）に関係なく動作し、権限判定は変更しません。 \
+追記する文章は英語です。 \
+`"explain_denials": false` を指定すると無効になります。 \
+OpenCode が拒否リソースの情報を返さない場合は、メッセージを変更しません。
+
+追記されるメッセージの例を次に示します。
+
+```text
+Permission denied: shell
+Denied resource: "rm -rf /tmp/x" (rule: "shell" "rm *" -> deny)
+Not denied in the same call: "cat package.json", "grep foo"
+The whole call did not run. Remove or change only the denied part before you retry.
+```
 
 ### モデルが参照する情報
 
@@ -276,6 +301,7 @@ TUI コマンドでは、これらの設定値は変わりません。
 | `on_danger`                 | `deny`                                                                       | 危険と判断された操作への対応（`ask` / `deny`）。                                                                                            |
 | `on_ask`                    | `ask`                                                                        | ユーザー確認推奨と判定された操作への対応（`ask` / `deny`）。                                                                                |
 | `on_failure`                | `ask`                                                                        | レビュー失敗時の対応（`ask` / `deny`）。                                                                                                    |
+| `explain_denials`           | `true`                                                                       | OpenCode の設定ルールで拒否されたとき、拒否されたコマンド部分と一致したルールをツールエラーに追記します。                                  |
 | `language`                  | `Japanese`                                                                   | 判定理由（`reason`）や注意点（`hint`）を出力する言語。特定の書式はなく、英語（`"English"`）や日本語（`"日本語"`）などの自然言語で指定可能。 |
 | `cache_ttl_ms`              | `600000`                                                                     | 判定結果を再利用する時間（ミリ秒。既定は 10 分）。最小値は `1000`。                                                                         |
 | `audit_path`                | `~/.local/share/opencode/permission-gate.jsonl`（`$XDG_DATA_HOME` 未設定時） | 監査ログの出力先ファイル。設定ファイルで独自に指定する際は、絶対パスを使用してください（`~` は展開されません）。                            |
@@ -325,6 +351,7 @@ TUI コマンドでは、これらの設定値は変わりません。
         "on_danger": "deny",                                     // "ask" | "deny"
         "on_ask": "ask",                                         // "ask" | "deny"
         "on_failure": "ask",                                     // "ask" | "deny"
+        "explain_denials": true,                                 // true | false
         "language": "Japanese",                                  // Any language name or code.
         "cache_ttl_ms": 600000,                                  // Milliseconds; minimum: 1000.
         "audit_path": "/absolute/path/to/permission-gate.jsonl", // Absolute path; no "~" expansion.
@@ -439,6 +466,7 @@ npx --yes tsx --test tests/*.test.ts
 - モードの継承
 - `dry-run` の提案結果
 - バナーの対象選択と見出し
+- 拒否されたコマンドの特定
 
 実際の TUI 描画や、本体の確認画面との一致は、自動テストの対象外です。 \
 次の内容は手動で確認してください。

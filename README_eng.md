@@ -17,6 +17,7 @@ After you examine the results, switch to `auto` to apply review results automati
 - **Three modes**: You can select `off` (disabled), `dry-run` (review without a change to decisions), or `auto` (automatic decisions).
 - **Configurable options**: The configuration file sets the default mode, policies for dangerous actions, language for review reasons, and other options.
 - **Safety controls**: You can block actions that the review identifies as dangerous or request user confirmation.
+- **Deny details**: If a configured OpenCode rule denies an action, the plugin adds the denied part of the command and the rule that matched to the tool error.
 - **Audit log**: The plugin records review decisions as one JSON object per line.
 - **TUI commands**: You can change modes and see the status in the terminal.
 
@@ -122,7 +123,7 @@ Before you use `auto`, also read "Security notes."
 
 | Mode      | Behavior                                                                                                 |
 | :-------- | :------------------------------------------------------------------------------------------------------- |
-| `off`     | Disable the plugin and do nothing (default).                                                             |
+| `off`     | Stop reviews and permission changes (default). `explain_denials` continues to operate.                   |
 | `dry-run` | Show the proposed effect in the banner and record it in the audit log. Keep the original `ask` decision. |
 | `auto`    | Change the decision to `allow` / `deny` / `ask` from the review result.                                  |
 
@@ -135,7 +136,7 @@ Before you use `auto`, also read "Security notes."
 The plugin uses `ctx.permission.hook("evaluate")` with this sequence.
 
 1. **Examine the action**: Handle only OpenCode decisions of `ask` for actions outside `skip_actions`. Keep existing `allow` and `deny` decisions.
-2. **Examine the mode**: In `off`, do nothing. In `dry-run` and `auto`, examine dangerous patterns, then the cache. Use the model if necessary.
+2. **Examine the mode**: In `off`, do no reviews. In `dry-run` and `auto`, examine dangerous patterns, then the cache. Use the model if necessary.
 3. **Apply the result**: In `auto`, follow the review result and review policies. In `dry-run`, keep the original `ask`.
 4. **Record the log**: Record an action only if it is eligible for review and the plugin evaluates it in `dry-run` / `auto`.
 
@@ -146,6 +147,30 @@ Even with invalid JSON, the review succeeds if the plugin can read an `allow` / 
 After 3 accumulated failures in model calls or output parsing, the plugin stops model reviews for 60 seconds. \
 During this period, it still uses the cache. If the cache has no result, it applies `on_failure`. \
 A successful verdict resets the failure count.
+
+### Deny details (`explain_denials`)
+
+If a configured OpenCode `deny` rule stops an action, the `permission` `evaluate` hook does not run. \
+So the plugin examines the failed tool call in `tool.hook("execute.after")`. \
+If the plugin can get the denied resources and the rules, it adds this data to the tool error message:
+
+- The denied part of the command and the rule that matched
+- The parts of the same call that no rule denied
+
+For a command with pipes or `&&`, the model can see which part the rule denied. \
+This function works in all modes (`off`, `dry-run`, `auto`) and does not change a permission decision. \
+The added text is in English. \
+Set `"explain_denials": false` to disable the function. \
+If OpenCode does not give the denied resources, the plugin does not change the message.
+
+This example shows the added message:
+
+```text
+Permission denied: shell
+Denied resource: "rm -rf /tmp/x" (rule: "shell" "rm *" -> deny)
+Not denied in the same call: "cat package.json", "grep foo"
+The whole call did not run. Remove or change only the denied part before you retry.
+```
 
 ### Information available to the model
 
@@ -276,6 +301,7 @@ To change or remove an explicit mode, supply `sessionID`.
 | `on_danger`                 | `deny`                                                                         | Response to actions identified as dangerous (`ask` / `deny`).                                                                                       |
 | `on_ask`                    | `ask`                                                                          | Response to actions for which the model recommends user confirmation (`ask` / `deny`).                                                              |
 | `on_failure`                | `ask`                                                                          | Response to review failures (`ask` / `deny`).                                                                                                       |
+| `explain_denials`           | `true`                                                                         | Add the denied part of the command and the rule that matched to the tool error when a configured OpenCode rule denies an action.                     |
 | `language`                  | `Japanese`                                                                     | Language for `reason` and `hint`. No specific format is necessary. Natural-language values include English (`"English"`) and Japanese (`"日本語"`). |
 | `cache_ttl_ms`              | `600000`                                                                       | Time to reuse a decision, in milliseconds (default: 10 minutes). Minimum: `1000`.                                                                   |
 | `audit_path`                | `~/.local/share/opencode/permission-gate.jsonl` (if `$XDG_DATA_HOME` is unset) | Audit log file. For a custom value in the configuration file, use an absolute path. The plugin does not expand `~`.                                 |
@@ -325,6 +351,7 @@ You can omit options that you do not need.
         "on_danger": "deny",                                     // "ask" | "deny"
         "on_ask": "ask",                                         // "ask" | "deny"
         "on_failure": "ask",                                     // "ask" | "deny"
+        "explain_denials": true,                                 // true | false
         "language": "Japanese",                                  // Any language name or code.
         "cache_ttl_ms": 600000,                                  // Milliseconds; minimum: 1000.
         "audit_path": "/absolute/path/to/permission-gate.jsonl", // Absolute path; no "~" expansion.
@@ -439,6 +466,7 @@ Automated tests cover:
 - Mode inheritance
 - Proposed effects in `dry-run`
 - Banner target selection and headings
+- Deny details
 
 Automated tests do not cover actual TUI rendering or agreement with OpenCode's confirmation view. \
 Do these manual checks.

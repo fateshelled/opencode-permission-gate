@@ -3,6 +3,13 @@ import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 // Server part: permission hook, judge, and RPC bridge for the TUI command.
 import { Plugin } from "@opencode/plugin"
+import {
+  blockedDetailsFromError,
+  buildDenyExplanation,
+  DENY_DETAIL_MARKER,
+  deniedResources,
+  type DenyRule,
+} from "./deny-detail"
 import { PermissionGate } from "./rpc"
 
 type Effect = "allow" | "ask" | "deny"
@@ -30,6 +37,7 @@ type Settings = {
   onDanger: DangerAction
   onAsk: DangerAction
   onFailure: DangerAction
+  explainDenials: boolean
   language: string
 }
 
@@ -214,6 +222,7 @@ function buildSettings(ctx: any): Settings {
     onDanger: isDangerAction(options.on_danger) ? options.on_danger : "deny",
     onAsk: isDangerAction(options.on_ask) ? options.on_ask : "ask",
     onFailure: isDangerAction(options.on_failure) ? options.on_failure : "ask",
+    explainDenials: options.explain_denials !== false,
     language: language || "Japanese",
   }
 }
@@ -506,6 +515,83 @@ function buildMessage(effect: Effect, decision: Decision | undefined): string {
   return `permission-gate: ${decision.reason}${hint}`
 }
 
+function denyRulesFrom(value: unknown): DenyRule[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.flatMap((item): DenyRule[] => {
+    if (!item || typeof item !== "object") {
+      return []
+    }
+    const rule = item as Record<string, unknown>
+    if (typeof rule.action !== "string" || typeof rule.resource !== "string" || typeof rule.effect !== "string") {
+      return []
+    }
+    return [{ action: rule.action, resource: rule.resource, effect: rule.effect }]
+  })
+}
+
+async function fallbackDenyRules(ctx: any, event: any): Promise<DenyRule[]> {
+  const rules: DenyRule[] = []
+  try {
+    const agent = await ctx.agent.get({ agentID: event.agent })
+    const info = (agent as any)?.data ?? agent
+    rules.push(...denyRulesFrom(info?.permissions))
+  } catch {
+    // Continue without the agent rules.
+  }
+  try {
+    const session = await ctx.session.get({ sessionID: event.sessionID })
+    const info = (session as any)?.data ?? session
+    rules.push(...denyRulesFrom(info?.permissions))
+  } catch {
+    // Continue without the session rules.
+  }
+  return rules
+}
+
+async function explainDenial(ctx: any, settings: Settings, event: any): Promise<void> {
+  if (!settings.explainDenials || event.status !== "error") {
+    return
+  }
+  const failure = event.error as { message?: unknown; error?: unknown } | undefined
+  if (!failure || typeof failure.message !== "string") {
+    return
+  }
+
+  const blocked = blockedDetailsFromError(failure)
+  if (!blocked) {
+    return
+  }
+  const previousReason = typeof blocked.source.reason === "string" ? blocked.source.reason : ""
+  if (failure.message.includes(DENY_DETAIL_MARKER) || previousReason.includes(DENY_DETAIL_MARKER)) {
+    return
+  }
+
+  // The error's rule list is the most accurate source. Use the agent and session
+  // rules only when the list does not identify a denying rule.
+  const identified = deniedResources(
+    blocked.info.permission,
+    blocked.info.resources,
+    blocked.info.rules,
+  ).length > 0
+  const fallback = identified ? [] : await fallbackDenyRules(ctx, event)
+  // A configured deny does not reach the permission hook. This hook runs after the
+  // tool fails, which is the only point where the blocked resources are available.
+  const base = previousReason.length > 0
+    ? previousReason
+    : `Permission denied: ${blocked.info.permission}`
+  const detailInfo = blocked.info.reason === base
+    ? { ...blocked.info, reason: undefined }
+    : blocked.info
+  const detail = buildDenyExplanation(detailInfo, fallback)
+  if (!detail) {
+    return
+  }
+  ;(blocked.source as { reason: string }).reason = `${base}\n${detail}`
+  ;(failure as { message: string }).message = `${failure.message}\n${detail}`
+}
+
 async function evaluate(ctx: any, settings: Settings, event: any): Promise<void> {
   // The hook also runs for allow decisions. Judge only the ask decisions.
   if (event.effect !== "ask") {
@@ -592,7 +678,7 @@ async function runCommand(
       message: [
         `global=${state.globalMode} (config) session=${sessionMode}`,
         `on_danger=${settings.onDanger} on_ask=${settings.onAsk} on_failure=${settings.onFailure} (config)`,
-        `language=${settings.language} (config)`,
+        `explain_denials=${settings.explainDenials} language=${settings.language} (config)`,
         `model=${modelLabel}`,
         `cache=${state.cache.size} degraded=${Date.now() < state.degradedUntil}`,
       ].join("\n"),
@@ -661,6 +747,12 @@ export default Plugin.define({
     await ctx.permission.hook("evaluate", async (event) => {
       await evaluate(ctx, settings, event)
     })
+
+    if (settings.explainDenials && ctx.tool?.hook) {
+      await ctx.tool.hook("execute.after", async (event) => {
+        await explainDenial(ctx, settings, event)
+      })
+    }
 
     if (!rpcRegistered) {
       try {

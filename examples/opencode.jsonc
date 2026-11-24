@@ -12,6 +12,7 @@
         "on_danger": "deny",
         "on_ask": "ask",
         "on_failure": "ask",
+        "explain_denials": true,
         "language": "Japanese",
         "cache_ttl_ms": 600000,
         // Must be an absolute path.
